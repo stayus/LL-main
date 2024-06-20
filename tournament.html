@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Torneio</title>
+</head>
+<body>
+    <h1 id="tournamentName"></h1>
+    <h2>Administrador: <span id="adminName"></span></h2>
+
+    <h3>Confrontos</h3>
+    <div id="matchesContainer"></div>
+
+    <h3>Resultados</h3>
+    <div id="resultsContainer"></div>
+
+    <h3>Classificação</h3>
+    <table id="rankingTable">
+        <thead>
+            <tr>
+                <th>Participante</th>
+                <th>Pontos</th>
+            </tr>
+        </thead>
+        <tbody id="rankingBody"></tbody>
+    </table>
+
+    <h3>Semifinais</h3>
+    <div id="semifinalsContainer"></div>
+
+    <h3>Final</h3>
+    <div id="finalsContainer"></div>
+
+    <h2>Campeão: <span id="champion"></span></h2>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <script src="tournament.js"></script>
+</body>
+</html>
