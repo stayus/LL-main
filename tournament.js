@@ -3,6 +3,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhneWNzYWt1amFvcG5ia2dldXZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTg4MTg4ODcsImV4cCI6MjAzNDM5NDg4N30.TkdIIO1_nD1XiH133jev1B4It2bcIRjIZRhgudQPBTw';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    let participants = [];
+    const ranking = {};
+    let semifinalWinners = [];
+
     async function loadTournamentData() {
         const urlParams = new URLSearchParams(window.location.search);
         const tournamentId = urlParams.get('id');
@@ -19,65 +23,97 @@ document.addEventListener('DOMContentLoaded', async function() {
             document.getElementById('tournamentName').textContent = data.tournament_name;
             document.getElementById('adminName').textContent = data.admin_name;
 
-            const participants = JSON.parse(data.participants);
+            participants = JSON.parse(data.participants);
+            participants.forEach(participant => ranking[participant] = 0);
+            renderRanking();
             generateMatches(participants);
         } catch (error) {
             console.error("Erro ao carregar dados do torneio:", error);
         }
     }
 
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
     function generateMatches(participants) {
-        const shuffledParticipants = participants.sort(() => 0.5 - Math.random());
         const matchesContainer = document.getElementById('matchesContainer');
         matchesContainer.innerHTML = '';
 
-        for (let i = 0; i < shuffledParticipants.length; i += 2) {
-            if (shuffledParticipants[i + 1]) {
-                const matchDiv = document.createElement('div');
-                matchDiv.textContent = `${shuffledParticipants[i]} vs ${shuffledParticipants[i + 1]}`;
-                matchDiv.id = `match-${i / 2}`;
-
-                const resultInput = document.createElement('input');
-                resultInput.type = 'number';
-                resultInput.max = 4;
-                resultInput.min = 0;
-                resultInput.placeholder = 'Pinos';
-                resultInput.id = `result-${i / 2}`;
-
-                const submitResultButton = document.createElement('button');
-                submitResultButton.textContent = 'Registrar Resultado';
-                submitResultButton.addEventListener('click', () => registerResult(i / 2, shuffledParticipants[i], shuffledParticipants[i + 1]));
-
-                matchDiv.appendChild(resultInput);
-                matchDiv.appendChild(submitResultButton);
-                matchesContainer.appendChild(matchDiv);
+        const matches = [];
+        for (let i = 0; i < participants.length; i++) {
+            for (let j = i + 1; j < participants.length; j++) {
+                matches.push({ participant1: participants[i], participant2: participants[j] });
             }
         }
+
+        const shuffledMatches = shuffle(matches);
+
+        shuffledMatches.forEach((match, index) => {
+            const matchDiv = document.createElement('div');
+            matchDiv.classList.add('match');
+            matchDiv.textContent = `${match.participant1} vs ${match.participant2}`;
+            matchDiv.id = `match-${index}`;
+
+            const resultInput1 = document.createElement('input');
+            resultInput1.type = 'number';
+            resultInput1.max = 4;
+            resultInput1.min = 0;
+            resultInput1.placeholder = `${match.participant1} Pinos`;
+            resultInput1.id = `result-${index}-1`;
+
+            const resultInput2 = document.createElement('input');
+            resultInput2.type = 'number';
+            resultInput2.max = 4;
+            resultInput2.min = 0;
+            resultInput2.placeholder = `${match.participant2} Pinos`;
+            resultInput2.id = `result-${index}-2`;
+
+            const submitResultButton = document.createElement('button');
+            submitResultButton.textContent = 'Registrar Resultado';
+            submitResultButton.addEventListener('click', () => registerResult(index, match.participant1, match.participant2));
+
+            matchDiv.appendChild(resultInput1);
+            matchDiv.appendChild(resultInput2);
+            matchDiv.appendChild(submitResultButton);
+            matchesContainer.appendChild(matchDiv);
+        });
     }
 
-    function registerResult(matchId, participant1, participant2) {
-        const resultInput = document.getElementById(`result-${matchId}`);
-        const pinos = parseInt(resultInput.value);
+    function registerResult(matchIndex, participant1, participant2) {
+        const resultInput1 = document.getElementById(`result-${matchIndex}-1`);
+        const resultInput2 = document.getElementById(`result-${matchIndex}-2`);
+        const pinos1 = parseInt(resultInput1.value);
+        const pinos2 = parseInt(resultInput2.value);
 
-        if (isNaN(pinos) || pinos < 0 || pinos > 4) {
-            alert('Número de pinos inválido. Deve estar entre 0 e 4.');
+        if (
+            isNaN(pinos1) || pinos1 < 0 || pinos1 > 4 ||
+            isNaN(pinos2) || pinos2 < 0 || pinos2 > 4
+        ) {
+            alert('Número de pinos inválido. Verifique as regras.');
             return;
         }
 
-        const resultsContainer = document.getElementById('resultsContainer');
-        const resultDiv = document.createElement('div');
-        resultDiv.textContent = `${participant1} vs ${participant2}: ${pinos} pinos`;
-        resultsContainer.appendChild(resultDiv);
+        if (pinos1 === 4 && pinos2 >= 4) {
+            alert('Somente um participante pode marcar 4 pinos.');
+            return;
+        }
 
-        updateRanking(participant1, pinos);
+        resultInput1.disabled = true;
+        resultInput2.disabled = true;
+        resultInput1.nextElementSibling.disabled = true;
+
+        updateRanking(participant1, pinos1);
+        updateRanking(participant2, pinos2);
+
+        checkAllMatchesCompleted();
     }
 
-    const ranking = {};
-
     function updateRanking(participant, points) {
-        if (!ranking[participant]) {
-            ranking[participant] = 0;
-        }
         ranking[participant] += points;
         renderRanking();
     }
@@ -87,84 +123,118 @@ document.addEventListener('DOMContentLoaded', async function() {
         rankingBody.innerHTML = '';
 
         const sortedRanking = Object.keys(ranking).sort((a, b) => ranking[b] - ranking[a]);
-        sortedRanking.forEach(participant => {
-            const row = document.createElement('tr');
-            const participantCell = document.createElement('td');
-            const pointsCell = document.createElement('td');
 
+        sortedRanking.forEach((participant, index) => {
+            const row = document.createElement('tr');
+            if (index < 4) {
+                row.classList.add('highlight');
+            }
+
+            const positionCell = document.createElement('td');
+            positionCell.textContent = index + 1;
+
+            const participantCell = document.createElement('td');
             participantCell.textContent = participant;
+
+            const pointsCell = document.createElement('td');
             pointsCell.textContent = ranking[participant];
 
+            row.appendChild(positionCell);
             row.appendChild(participantCell);
             row.appendChild(pointsCell);
             rankingBody.appendChild(row);
         });
+    }
 
-        if (sortedRanking.length >= 4) {
-            generateSemifinals(sortedRanking.slice(0, 4));
+    function checkAllMatchesCompleted() {
+        const allResultsRegistered = Array.from(document.querySelectorAll('.match input[type="number"]')).every(input => input.disabled);
+
+        if (allResultsRegistered) {
+            showNextRounds();
         }
     }
 
-    function generateSemifinals(topParticipants) {
+    function showNextRounds() {
+        document.getElementById('semifinalsContainer').style.display = 'block';
+
+        const sortedRanking = Object.keys(ranking).sort((a, b) => ranking[b] - ranking[a]);
+        const top4 = sortedRanking.slice(0, 4);
+
+        const semifinalMatches = [
+            { participant1: top4[0], participant2: top4[3] },
+            { participant1: top4[1], participant2: top4[2] }
+        ];
+
         const semifinalsContainer = document.getElementById('semifinalsContainer');
-        semifinalsContainer.innerHTML = '';
+        semifinalsContainer.innerHTML = '<h3>Semifinais</h3>';
 
-        const match1 = `${topParticipants[0]} vs ${topParticipants[3]}`;
-        const match2 = `${topParticipants[1]} vs ${topParticipants[2]}`;
+        semifinalMatches.forEach((match, index) => {
+            const matchDiv = document.createElement('div');
+            matchDiv.classList.add('semifinal');
+            matchDiv.textContent = `${match.participant1} vs ${match.participant2}`;
+            matchDiv.id = `semifinal-${index}`;
 
-        const match1Div = document.createElement('div');
-        match1Div.textContent = match1;
+            const resultInput1 = document.createElement('input');
+            resultInput1.type = 'number';
+            resultInput1.max = 4;
+            resultInput1.min = 0;
+            resultInput1.placeholder = `${match.participant1} Pinos`;
+            resultInput1.id = `semifinal-result-${index}-1`;
 
-        const match2Div = document.createElement('div');
-        match2Div.textContent = match2;
+            const resultInput2 = document.createElement('input');
+            resultInput2.type = 'number';
+            resultInput2.max = 4;
+            resultInput2.min = 0;
+            resultInput2.placeholder = `${match.participant2} Pinos`;
+            resultInput2.id = `semifinal-result-${index}-2`;
 
-        const resultInput1 = document.createElement('input');
-        resultInput1.type = 'number';
-        resultInput1.max = 4;
-        resultInput1.min = 0;
-        resultInput1.placeholder = 'Pinos';
-        resultInput1.id = 'semifinal1';
+            const submitResultButton = document.createElement('button');
+            submitResultButton.textContent = 'Registrar Resultado';
+            submitResultButton.addEventListener('click', () => registerSemifinalResult(index, match.participant1, match.participant2));
 
-        const resultInput2 = document.createElement('input');
-        resultInput2.type = 'number';
-        resultInput2.max = 4;
-        resultInput2.min = 0;
-        resultInput2.placeholder = 'Pinos';
-        resultInput2.id = 'semifinal2';
-
-        const submitSemifinalButton1 = document.createElement('button');
-        submitSemifinalButton1.textContent = 'Registrar Resultado';
-        submitSemifinalButton1.addEventListener('click', () => registerSemifinalResult(1, topParticipants[0], topParticipants[3]));
-
-        const submitSemifinalButton2 = document.createElement('button');
-        submitSemifinalButton2.textContent = 'Registrar Resultado';
-        submitSemifinalButton2.addEventListener('click', () => registerSemifinalResult(2, topParticipants[1], topParticipants[2]));
-
-        match1Div.appendChild(resultInput1);
-        match1Div.appendChild(submitSemifinalButton1);
-        match2Div.appendChild(resultInput2);
-        match2Div.appendChild(submitSemifinalButton2);
-
-        semifinalsContainer.appendChild(match1Div);
-        semifinalsContainer.appendChild(match2Div);
+            matchDiv.appendChild(resultInput1);
+            matchDiv.appendChild(resultInput2);
+            matchDiv.appendChild(submitResultButton);
+            semifinalsContainer.appendChild(matchDiv);
+        });
     }
 
-    function registerSemifinalResult(matchId, participant1, participant2) {
-        const resultInput = document.getElementById(`semifinal${matchId}`);
-        const pinos = parseInt(resultInput.value);
+    function registerSemifinalResult(matchIndex, participant1, participant2) {
+        const resultInput1 = document.getElementById(`semifinal-result-${matchIndex}-1`);
+        const resultInput2 = document.getElementById(`semifinal-result-${matchIndex}-2`);
+        const pinos1 = parseInt(resultInput1.value);
+        const pinos2 = parseInt(resultInput2.value);
 
-        if (isNaN(pinos) || pinos < 0 || pinos > 4) {
-            alert('Número de pinos inválido. Deve estar entre 0 e 4.');
+        if (
+            isNaN(pinos1) || pinos1 < 0 || pinos1 > 4 ||
+            isNaN(pinos2) || pinos2 < 0 || pinos2 > 4
+        ) {
+            alert('Número de pinos inválido. Verifique as regras.');
             return;
         }
 
-        const resultsContainer = document.getElementById('resultsContainer');
-        const resultDiv = document.createElement('div');
-        resultDiv.textContent = `Semifinal ${matchId}: ${participant1} vs ${participant2}: ${pinos} pinos`;
-        resultsContainer.appendChild(resultDiv);
+        if (pinos1 === 4 && pinos2 >= 4) {
+            alert('Somente um participante pode marcar 4 pinos.');
+            return;
+        }
 
-        updateRanking(participant1, pinos);
+        resultInput1.disabled = true;
+        resultInput2.disabled = true;
+        resultInput1.nextElementSibling.disabled = true;
+
+        const winner = pinos1 > pinos2 ? participant1 : participant2;
+        semifinalWinners.push(winner);
+
+        if (semifinalWinners.length === 2) {
+            showFinal();
+        }
     }
 
-    await loadTournamentData();
+    function showFinal() {
+        const finalsContainer = document.getElementById('finalsContainer');
+        finalsContainer.style.display = 'block';
+        finalsContainer.innerHTML = `<h3>Final</h3><p>${semifinalWinners[0]} vs ${semifinalWinners[1]}</p>`;
+    }
+
+    loadTournamentData();
 });

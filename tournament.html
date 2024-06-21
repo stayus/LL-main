@@ -4,37 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Torneio</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <script src="tournament.js" defer></script>
 </head>
 <body>
-    <h1 id="tournamentName"></h1>
-    <h2>Administrador: <span id="adminName"></span></h2>
+    <div class="container">
+        <h1 id="tournamentName"></h1>
+        <p id="adminName"></p>
 
-    <h3>Confrontos</h3>
-    <div id="matchesContainer"></div>
+        <div id="matchesContainer" class="section"></div>
 
-    <h3>Resultados</h3>
-    <div id="resultsContainer"></div>
+        <div id="resultsContainer" class="section">
+            <h3>Classificação</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Posição</th>
+                        <th>Participante</th>
+                        <th>Pontos</th>
+                    </tr>
+                </thead>
+                <tbody id="rankingBody"></tbody>
+            </table>
+        </div>
 
-    <h3>Classificação</h3>
-    <table id="rankingTable">
-        <thead>
-            <tr>
-                <th>Participante</th>
-                <th>Pontos</th>
-            </tr>
-        </thead>
-        <tbody id="rankingBody"></tbody>
-    </table>
+        <div id="semifinalsContainer" class="section" style="display: none;">
+            <h3>Semifinais</h3>
+        </div>
 
-    <h3>Semifinais</h3>
-    <div id="semifinalsContainer"></div>
-
-    <h3>Final</h3>
-    <div id="finalsContainer"></div>
-
-    <h2>Campeão: <span id="champion"></span></h2>
-
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-    <script src="tournament.js"></script>
+        <div id="finalsContainer" class="section" style="display: none;">
+            <h3>Final</h3>
+        </div>
+    </div>
 </body>
 </html>
